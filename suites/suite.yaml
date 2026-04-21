@@ -1,0 +1,23 @@
+# Test Suite — ganti baseUrl dan endpoints sesuai API kamu
+baseUrl: http://localhost:8080
+
+endpoints:
+  - name: create-product
+    method: POST
+    path: /api/v1/products
+    auth: true
+    expectedStatus: 201
+    body:
+      name: "Test User"
+      price: 100000
+      stock: 10
+      category_id: 1
+    expectedFields:
+      - id
+      - name
+      - price
+      - stock
+      - category_id
+    tags:
+      - product
+      - create

@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "sentinel-mcp": {
+      "command": "npx",
+      "args": [
+        "tsx",
+        "/GANTI/DENGAN/PATH/ABSOLUT/sentinel-mcp/src/index.ts"
+      ],
+      "env": {
+        "DEFAULT_PROVIDER": "ollama",
+        "OLLAMA_BASE_URL": "http://localhost:11434",
+        "OLLAMA_MODEL": "llama3",
+        "ANTHROPIC_API_KEY": "sk-ant-xxx",
+        "OPENAI_API_KEY": "sk-xxx",
+        "GEMINI_API_KEY": "xxx",
+        "TARGET_API_BASE_URL": "http://localhost:3000",
+        "TARGET_API_TOKEN": "your-token-here",
+        "REPORTS_DIR": "/GANTI/DENGAN/PATH/ABSOLUT/sentinel-mcp/reports"
+      }
+    }
+  }
+}
