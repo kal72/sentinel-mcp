@@ -17,8 +17,15 @@ async function executeRequest(
 ): Promise<SingleTestResult> {
   const start = Date.now();
 
+  let finalPath = testCase.path;
+  if (testCase.pathParams) {
+    for (const [k, v] of Object.entries(testCase.pathParams)) {
+      finalPath = finalPath.replace(`{${k}}`, v).replace(`:${k}`, v);
+    }
+  }
+
   // Build full URL with query params
-  const url = new URL(`${baseUrl}${testCase.path}`);
+  const url = new URL(`${baseUrl}${finalPath}`);
   if (testCase.queryParams) {
     for (const [k, v] of Object.entries(testCase.queryParams)) {
       url.searchParams.set(k, v);

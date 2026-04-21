@@ -23,6 +23,7 @@ const JSON_SCHEMA_CASE = [
   '      "headers": {},',
   '      "body": {},',
   '      "queryParams": {},',
+  '      "pathParams": {},',
   '      "expectedBehavior": "what a correct API should do",',
   '      "expectedStatus": 200,',
   '      "owaspCategory": "A03-Injection",',

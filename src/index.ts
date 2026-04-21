@@ -19,6 +19,7 @@ server.registerTool(
       endpoint: z.string().optional().describe('Endpoint name to test, or omit to test all'),
       provider: z.enum(['ollama', 'claude', 'openai', 'gemini', 'lmstudio']).optional(),
       suite_file: z.string().optional().describe('Path to YAML test suite file'),
+      suite_dir: z.string().optional().describe('Path to directory containing YAML test suite files. All .yaml/.yml files will be loaded and merged'),
     }),
   },
   async (input) => {
@@ -40,8 +41,9 @@ server.registerTool(
     inputSchema: z.object({
       endpoint: z.string().optional().describe('Endpoint name to test, or omit to test all'),
       provider: z.enum(['ollama', 'claude', 'openai', 'gemini']).optional()
-        .describe('AI provider. claude or openai recommended for deeper security analysis'),
+        .describe('AI provider. For best security analysis, prefer claude or openai'),
       suite_file: z.string().optional().describe('Path to YAML test suite file'),
+      suite_dir: z.string().optional().describe('Path to directory containing YAML test suite files. All .yaml/.yml files will be loaded and merged'),
     }),
   },
   async (input) => {
@@ -68,7 +70,81 @@ server.registerTool(
   }
 );
 
+// ─── Tool 4: get_test_suite_format ────────────────────────────────────────────
+server.registerTool(
+  'get_test_suite_format',
+  {
+    description: 'Get the required YAML format of the API test suite. Use this to understand how to write or generate test suites for sentinel-mcp.',
+    inputSchema: z.object({}),
+  },
+  async () => {
+    const format = `
+Sentinel-MCP Test Suite Format (YAML)
+=====================================
+A test suite consists of an array of endpoint objects or an object containing a 'baseUrl' and 'endpoints' array.
+
+Supported fields for each endpoint:
+- name (string, required): A unique identifier or name for the endpoint.
+- method (string, required): HTTP method (GET, POST, PUT, PATCH, DELETE).
+- path (string, required): The URL path (e.g., /api/v1/users).
+- auth (boolean, optional): Set to true to indicate the endpoint requires Authorization.
+- expectedStatus (number, optional): The expected HTTP status code for a successful request (e.g., 200, 201).
+- headers (object, optional): Key-value pairs of HTTP headers.
+- body (object, optional): The JSON payload to send with the request.
+- queryParams (object, optional): Key-value pairs for URL query parameters (?key=value).
+- pathParams (object, optional): Key-value pairs to replace path variables (e.g., /users/:id or /users/{id}).
+- expectedFields (array of strings, optional): Fields expected to be present in the JSON response.
+- tags (array of strings, optional): Tags for categorizing the endpoint.
+
+Example YAML:
+---
+- name: get-user-profile
+  method: GET
+  path: /api/v1/profile
+  auth: true
+  expectedStatus: 200
+  expectedFields:
+    - id
+    - username
+    - email
+    - role
+
+- name: search-users
+  method: GET
+  path: /api/v1/users
+  auth: true
+  queryParams:
+    role: "admin"
+    limit: "10"
+  expectedStatus: 200
+
+- name: get-user-by-id
+  method: GET
+  path: /api/v1/users/:id
+  auth: true
+  pathParams:
+    id: "123"
+  expectedStatus: 200
+
+- name: create-product
+  method: POST
+  path: /api/v1/products
+  auth: true
+  expectedStatus: 201
+  headers:
+    Content-Type: application/json
+  body:
+    name: "New Product"
+    price: 99.99
+  expectedFields:
+    - productId
+    - createdAt
+`;
+    return { content: [{ type: 'text', text: format }] };
+  }
+);
+
 // ─── Start ────────────────────────────────────────────────────────────────────
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error('[sentinel-mcp] Server running — tools: run_api_test, run_security_test, list_providers');
+console.error('[sentinel-mcp] Server running — tools: run_api_test, run_security_test, list_providers, get_test_suite_format');

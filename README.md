@@ -63,7 +63,8 @@ ollama pull llama3
 
 ### 4. Definisikan endpoint di suite.yaml
 
-Edit `tests/endpoints/suite.yaml` sesuai API kamu.
+Secara default, test config dimuat dari `suites/`, `tests/endpoints/suite.yaml`, atau lokasi default lainnya.
+Edit file tersebut sesuai API kamu. Jika kamu memiliki test suite di luar project, kamu bisa memberikan _path_ langsung ke MCP via chat AI (mendukung single file config maupun satu directory khusus berisikan banyak konfigurasi).
 
 ### 5. Daftarkan ke Claude Desktop
 
@@ -73,23 +74,26 @@ Salin isi `claude_desktop_config.example.json` ke:
 
 Ganti path absolut sesuai lokasi project kamu, lalu restart Claude Desktop.
 
-## Cara Pakai di Chat
+## Cara Pakai di Chat (Contoh Prompt AI)
 
-```
-# Test semua endpoint, pakai provider default
-"test semua endpoint API saya"
+Kamu dapat menggunakan bahasa manusia secara natural di _AI client_ yang mendukung MCP (seperti Claude Desktop, Cline, Windsurf). Di balik layar, AI akan otomatis memilih tool yang relevan.
 
-# Test endpoint tertentu
-"test endpoint login"
+**1. Basic Testing (Menggunakan file config default):**
+> "Tolong jalankan API test untuk semua endpoint saya"
+> "Test endpoint login saja pakai gemini ya"
+> "Coba run security test untuk sistem saya"
 
-# Ganti provider saat testing
-"test semua endpoint pakai claude"
-"jalankan security test pakai openai"
-"test endpoint create-user pakai gemini"
+**2. Menggunakan File / Direktori Eksternal (`suite_dir` / `suite_file`):**
+Jika konfigurasi test API kamu ada di folder project lain (di luar project Sentinel MCP), kamu tinggal beri tahu path-nya ke AI:
+> "Test API saya menggunakan config di folder `/Users/nama/ProjectLain/api-suites/`"
+> "Tolong jalankan security test berdasarkan file `/path/to/custom-project/suite.yaml`"
 
-# Cek provider yang tersedia
-"provider apa yang tersedia?"
-```
+**3. Kombinasi:**
+> "Bantu cek security untuk API payment saya yang ada di `/Users/dev/ecommerce/suites/`, gunakan provider klaude karena saya butuh analisa security tingkat tinggi."
+
+**4. Mengatur Provider AI:**
+> "Provider apa saja yang saat ini tersedia?"
+> "Bisa switch ke openai untuk test endpoint register?"
 
 ## Security Testing yang Dilakukan
 

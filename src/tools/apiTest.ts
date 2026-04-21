@@ -9,13 +9,14 @@ export const runApiTestSchema = z.object({
   endpoint: z.string().optional().describe('Specific endpoint name, or omit to test all'),
   provider: z.enum(['ollama', 'lmstudio', 'claude', 'openai', 'gemini']).optional(),
   suite_file: z.string().optional().describe('Custom path to YAML test suite file'),
+  suite_dir: z.string().optional().describe('Path to directory containing YAML test suite files'),
 });
 
 export type RunApiTestInput = z.infer<typeof runApiTestSchema>;
 
 export async function runApiTest(input: RunApiTestInput): Promise<string> {
   const provider = getProvider(input.provider);
-  const suite = loadTestSuite(input.suite_file);
+  const suite = loadTestSuite({ suite_file: input.suite_file, suite_dir: input.suite_dir });
   const baseUrl = suite.baseUrl ?? process.env.TARGET_API_BASE_URL ?? 'http://localhost:3000';
 
   const endpoints = input.endpoint

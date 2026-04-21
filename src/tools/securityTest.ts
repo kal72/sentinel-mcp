@@ -10,6 +10,7 @@ export const runSecurityTestSchema = z.object({
   provider: z.enum(['ollama', 'claude', 'openai', 'gemini']).optional()
     .describe('AI provider. For best security analysis, prefer claude or openai'),
   suite_file: z.string().optional().describe('Custom path to YAML test suite file'),
+  suite_dir: z.string().optional().describe('Path to directory containing YAML test suite files'),
 });
 
 export type RunSecurityTestInput = z.infer<typeof runSecurityTestSchema>;
@@ -28,7 +29,7 @@ const OWASP_CATEGORIES = [
 
 export async function runSecurityTest(input: RunSecurityTestInput): Promise<string> {
   const provider = getProvider(input.provider);
-  const suite = loadTestSuite(input.suite_file);
+  const suite = loadTestSuite({ suite_file: input.suite_file, suite_dir: input.suite_dir });
   const baseUrl = suite.baseUrl ?? process.env.TARGET_API_BASE_URL ?? 'http://localhost:3000';
 
   const endpoints = input.endpoint

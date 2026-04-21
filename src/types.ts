@@ -8,6 +8,8 @@ export interface EndpointConfig {
     path: string;
     headers?: Record<string, string>;
     body?: unknown;
+    queryParams?: Record<string, string>;
+    pathParams?: Record<string, string>;
     expectedStatus?: number;
     expectedFields?: string[];
     auth?: boolean; // include Authorization header
@@ -79,6 +81,7 @@ export interface GeneratedTestCase {
     headers?: Record<string, string>;
     body?: unknown;
     queryParams?: Record<string, string>;
+    pathParams?: Record<string, string>;
     expectedBehavior: string;          // what a secure/correct API should do
     expectedStatus?: number;
     owaspCategory?: OwaspCategory;     // only for security tests
