@@ -5,7 +5,6 @@ endpoints:
   - name: create-product
     method: POST
     path: /api/v1/products
-    auth: true
     expectedStatus: 201
     body:
       name: "Test User"

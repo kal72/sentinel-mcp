@@ -3,6 +3,7 @@ import { OllamaProvider } from './ollama.js';
 import { ClaudeProvider } from './claude.js';
 import { OpenAIProvider } from './openai.js';
 import { GeminiProvider } from './gemini.js';
+import { LMStudioProvider } from './lmstudio.js';
 
 export function getProvider(name?: string): AIProvider {
   const selected = (name ?? process.env.DEFAULT_PROVIDER ?? 'ollama').toLowerCase() as ProviderName;
@@ -14,10 +15,12 @@ export function getProvider(name?: string): AIProvider {
       return new OpenAIProvider();
     case 'gemini':
       return new GeminiProvider();
+    case 'lmstudio':
+      return new LMStudioProvider();
     case 'ollama':
     default:
       return new OllamaProvider();
   }
 }
 
-export const PROVIDER_NAMES: ProviderName[] = ['ollama', 'claude', 'openai', 'gemini'];
+export const PROVIDER_NAMES: ProviderName[] = ['ollama', 'lmstudio', 'claude', 'openai', 'gemini'];

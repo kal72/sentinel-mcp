@@ -7,7 +7,7 @@ import type { GeneratedTestPlan } from '../types.js';
 
 export const runApiTestSchema = z.object({
   endpoint: z.string().optional().describe('Specific endpoint name, or omit to test all'),
-  provider: z.enum(['ollama', 'claude', 'openai', 'gemini']).optional(),
+  provider: z.enum(['ollama', 'lmstudio', 'claude', 'openai', 'gemini']).optional(),
   suite_file: z.string().optional().describe('Custom path to YAML test suite file'),
 });
 
@@ -74,9 +74,9 @@ export async function runApiTest(input: RunApiTestInput): Promise<string> {
     ``,
     analysis.bugs.length > 0
       ? `### Bug Ditemukan (${analysis.bugs.length})\n` +
-        analysis.bugs
-          .map((b) => `- **[${b.severity.toUpperCase()}]** \`${b.endpoint}\`: ${b.description}\n  _Fix: ${b.fix}_`)
-          .join('\n')
+      analysis.bugs
+        .map((b) => `- **[${b.severity.toUpperCase()}]** \`${b.endpoint}\`: ${b.description}\n  _Fix: ${b.fix}_`)
+        .join('\n')
       : `### Tidak ada bug ✅`,
     ``,
     `**Report:** \`${savedPath}\``,

@@ -130,4 +130,4 @@ export interface AIProvider {
     analyzeSecurity(testResults: TestRunResult, testPlans: GeneratedTestPlan[]): Promise<AIAnalysis>;
 }
 
-export type ProviderName = 'ollama' | 'claude' | 'openai' | 'gemini';
+export type ProviderName = 'ollama' | 'claude' | 'openai' | 'gemini' | 'lmstudio';

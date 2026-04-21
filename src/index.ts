@@ -17,7 +17,7 @@ server.registerTool(
     description: 'Run positive and negative functional tests on API endpoints. AI generates test cases automatically and analyzes results.',
     inputSchema: z.object({
       endpoint: z.string().optional().describe('Endpoint name to test, or omit to test all'),
-      provider: z.enum(['ollama', 'claude', 'openai', 'gemini']).optional(),
+      provider: z.enum(['ollama', 'claude', 'openai', 'gemini', 'lmstudio']).optional(),
       suite_file: z.string().optional().describe('Path to YAML test suite file'),
     }),
   },
