@@ -10,6 +10,8 @@ export interface EndpointConfig {
     body?: unknown;
     queryParams?: Record<string, string>;
     pathParams?: Record<string, string>;
+    description?: string; // Text to tell AI which fields are required/optional or other rules
+    requiredFields?: string[]; // Explicit list of mandatory fields (body or query)
     expectedStatus?: number;
     expectedFields?: string[];
     auth?: boolean; // include Authorization header

@@ -45,46 +45,116 @@ function parseJSON<T>(raw: string): T {
   return JSON.parse(cleaned) as T;
 }
 
+// ─── Data Pruning Helpers (Minimize Context Length) ─────────────
+
+function pruneTestResults(results: TestRunResult) {
+  return {
+    ...results,
+    endpoints: results.endpoints.map(ep => ({
+      ...ep,
+      results: ep.results.map(r => {
+        const { responseHeaders, ...rest } = r; // Strip headers to save tokens
+        // Truncate long bodies
+        if (typeof rest.responseBody === 'string' && rest.responseBody.length > 500) {
+          rest.responseBody = rest.responseBody.substring(0, 500) + '...[TRUNCATED]';
+        }
+        return rest;
+      })
+    }))
+  };
+}
+
+function pruneTestPlans(plans: GeneratedTestPlan[]) {
+  return plans.map(p => ({
+    endpointName: p.endpointName,
+    cases: p.cases.map(c => ({
+      id: c.id,
+      type: c.type,
+      description: c.description,
+      expectedBehavior: c.expectedBehavior,
+      owaspCategory: c.owaspCategory
+    }))
+  }));
+}
+
 // ─── Prompt 1: Positive + Negative test plan ──────────────────────────────────
 
 export function buildFunctionalTestPlanPrompt(endpoint: EndpointConfig, baseUrl: string): string {
-  const info = JSON.stringify({ baseUrl, ...endpoint }, null, 2);
-  return [
+  const hasInputs = !!(endpoint.body || endpoint.queryParams || endpoint.pathParams || (endpoint.requiredFields && endpoint.requiredFields.length > 0));
+  const info = JSON.stringify({ baseUrl, ...endpoint });
+
+  const sections = [
     'You are a senior QA engineer.',
     'Generate a FUNCTIONAL test plan (positive and negative only) for this API endpoint.',
     '',
     'Endpoint info:',
     info,
     '',
+  ];
+
+  if (!hasInputs) {
+    sections.push(
+      'CRITICAL: This endpoint has NO defined inputs (no body, queryParams, or pathParams).',
+      'Do NOT invent or hallucinate fields to test. Only test reachability and basic constraints.',
+      ''
+    );
+  }
+
+  sections.push(
     '1. POSITIVE TESTS — valid inputs that should succeed',
     '   - Happy path with all required fields',
-    '   - Boundary values (min/max allowed)',
-    '   - Optional fields present then absent',
-    '   - Different valid data variations',
+    hasInputs ? '   - Boundary values (min/max allowed)' : '',
+    hasInputs ? '   - Optional fields present then absent' : '',
+    '   - REALISTIC DATA VARIATIONS (CRITICAL):',
+    '     * Be a realistic user. Use real human names (e.g., "Budi Santoso", not "test").',
+    '     * Use contextually accurate values.',
+    '     * Inject international UTF-8 characters and Emojis.',
     '',
     '2. NEGATIVE TESTS — invalid inputs that must return proper 4xx errors',
-    '   - Missing required fields (one at a time)',
-    '   - Wrong data types (string where int expected, etc.)',
-    '   - Empty string, null, whitespace-only values',
-    '   - Out-of-range values (too long, too short, negative numbers)',
-    '   - Malformed formats (bad email, invalid UUID, bad date)',
-    '   - Completely empty body',
-    '   - Unexpected/extra fields (mass assignment probe)',
+  );
+
+  if (hasInputs) {
+    sections.push(
+      '   - HUMAN FAT-FINGER ERRORS (Realistic Mistakes):',
+      '     * Trailing/leading invisible spaces',
+      '     * Integers typed with commas/dots by mistake',
+      '     * Valid email format but completely invalid TLD',
+      '   - Missing required fields',
+      '   - Wrong data types',
+      '   - Empty string, null, whitespace-only values',
+      '   - Out-of-range values',
+      '   - Malformed formats',
+      '   - Completely empty body',
+      '   - Unexpected/extra fields',
+    );
+  } else {
+    if (endpoint.auth) {
+      sections.push('   - Unauthorized access (request without token)');
+    }
+    sections.push(
+      `   - Invalid HTTP methods (e.g., call POST or DELETE instead of ${endpoint.method})`,
+      '   - Large payload/headers for basic DoS protection check',
+    );
+  }
+
+  sections.push(
     '',
     'Rules:',
     '- type must be "positive" or "negative" only — NO security cases here',
     '- owaspCategory and owaspRationale must be omitted (null)',
-    '- Minimum: 4 positive cases and 8 negative cases',
-    '- Make body/headers realistic and specific to this endpoint schema',
+    `- Minimum: ${hasInputs ? '4 positive cases and 8 negative cases' : '2 positive cases and 2 negative cases'}`,
+    '- DATA REALISM: Never use generic placeholders like "test", "foo", "string", or "123". Emulate real human input.',
     '- Output raw JSON only:',
     fillSchema(endpoint),
-  ].join('\n');
+  );
+
+  return sections.filter(s => s !== '').join('\n');
 }
 
 // ─── Prompt 2: Security-only test plan (OWASP Top 10) ────────────────────────
 
 export function buildSecurityTestPlanPrompt(endpoint: EndpointConfig, baseUrl: string): string {
-  const info = JSON.stringify({ baseUrl, ...endpoint }, null, 2);
+  const info = JSON.stringify({ baseUrl, ...endpoint });
   return [
     'You are a senior API penetration tester and OWASP expert.',
     'Generate a SECURITY-ONLY test plan for this API endpoint, mapped to OWASP Top 10 2021.',
@@ -172,10 +242,10 @@ export function buildFunctionalAnalysisPrompt(
     'Analyze these API functional test results (positive and negative tests only).',
     '',
     'Test Plans:',
-    JSON.stringify(testPlans, null, 2),
+    JSON.stringify(pruneTestPlans(testPlans)),
     '',
     'Actual Results:',
-    JSON.stringify(testResults, null, 2),
+    JSON.stringify(pruneTestResults(testResults)),
     '',
     'Analysis requirements:',
     '1. POSITIVE: correct status code, correct response fields, latency < 2000ms?',
@@ -217,10 +287,10 @@ export function buildSecurityAnalysisPrompt(
     'Analyze these API security test results.',
     '',
     'Security Test Plans (what was attempted):',
-    JSON.stringify(testPlans, null, 2),
+    JSON.stringify(pruneTestPlans(testPlans)),
     '',
     'Actual Results (what happened):',
-    JSON.stringify(testResults, null, 2),
+    JSON.stringify(pruneTestResults(testResults)),
     '',
     'For each test case, determine:',
     '- Was the attack rejected properly (4xx or specific safe error)?',
@@ -273,4 +343,29 @@ export function parseAnalysisResponse(raw: string): AIAnalysis {
       overallScore: 0,
     };
   }
+}
+
+/**
+ * Merges multiple AIAnalysis results into one (used for per-endpoint analysis)
+ */
+export function mergeAnalyses(analyses: AIAnalysis[]): AIAnalysis {
+  if (analyses.length === 0) {
+    return {
+      summary: 'No results to analyze.',
+      bugs: [],
+      securityIssues: [],
+      recommendations: [],
+      overallScore: 0
+    };
+  }
+
+  if (analyses.length === 1) return analyses[0];
+
+  return {
+    summary: analyses.map(a => a.summary).join('\n\n'),
+    overallScore: Math.round(analyses.reduce((sum, a) => sum + a.overallScore, 0) / analyses.length),
+    bugs: analyses.flatMap(a => a.bugs),
+    securityIssues: analyses.flatMap(a => a.securityIssues),
+    recommendations: [...new Set(analyses.flatMap(a => a.recommendations))]
+  };
 }

@@ -3,7 +3,8 @@ import { getProvider } from '../providers/factory.js';
 import { runFromPlans } from '../runner/runner.js';
 import { loadTestSuite } from '../runner/loader.js';
 import { generateMarkdownReport, saveReport } from '../reports/generator.js';
-import type { GeneratedTestPlan } from '../types.js';
+import { mergeAnalyses } from '../providers/prompt.js';
+import type { GeneratedTestPlan, TestRunResult, AIAnalysis } from '../types.js';
 
 export const runSecurityTestSchema = z.object({
   endpoint: z.string().optional().describe('Specific endpoint name, or omit to test all'),
@@ -74,10 +75,25 @@ export async function runSecurityTest(input: RunSecurityTestInput): Promise<stri
   logs.push(`**Phase 2 — Menjalankan ${totalCases} security test cases...**\n`);
   const testResults = await runFromPlans(suite, testPlans, provider.name, provider.model);
 
-  // Phase 3: AI security analysis
-  console.error(`[run_security_test] Phase 3: AI OWASP analysis...`);
-  logs.push(`**Phase 3 — AI menganalisis dengan standar OWASP...**\n`);
-  const analysis = await provider.analyzeSecurity(testResults, testPlans);
+  // Phase 3: AI security analysis per endpoint to minimize context length
+  console.error(`[run_security_test] Phase 3: AI OWASP analysis per endpoint...`);
+  logs.push(`**Phase 3 — AI menganalisis per endpoint dengan standar OWASP...**\n`);
+
+  const analyses: AIAnalysis[] = [];
+  for (const endpointResult of testResults.endpoints) {
+    const endpointPlan = testPlans.find((p) => p.endpointName === endpointResult.endpoint);
+    const miniResult: TestRunResult = {
+      ...testResults,
+      totalEndpoints: 1,
+      endpoints: [endpointResult],
+    };
+
+    console.error(`  [analyzer] Security analysis for: ${endpointResult.endpoint}...`);
+    const singleAnalysis = await provider.analyzeSecurity(miniResult, endpointPlan ? [endpointPlan] : []);
+    analyses.push(singleAnalysis);
+  }
+
+  const analysis = mergeAnalyses(analyses);
 
   const reportMd = generateMarkdownReport(testResults, analysis, testPlans, 'security');
   const savedPath = saveReport(reportMd, provider.name, 'security');

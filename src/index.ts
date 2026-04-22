@@ -93,52 +93,65 @@ Supported fields for each endpoint:
 - body (object, optional): The JSON payload to send with the request.
 - queryParams (object, optional): Key-value pairs for URL query parameters (?key=value).
 - pathParams (object, optional): Key-value pairs to replace path variables (e.g., /users/:id or /users/{id}).
+- description (string, optional): Context/rules for the AI (e.g., "limit is optional, name is required max 50 chars").
+- requiredFields (array of strings, optional): Explicit list of mandatory fields in body or queryParams.
 - expectedFields (array of strings, optional): Fields expected to be present in the JSON response.
 - tags (array of strings, optional): Tags for categorizing the endpoint.
 
 Example YAML:
 ---
-- name: get-user-profile
-  method: GET
-  path: /api/v1/profile
-  auth: true
-  expectedStatus: 200
-  expectedFields:
-    - id
-    - username
-    - email
-    - role
+baseUrl: http://localhost:8080
 
-- name: search-users
-  method: GET
-  path: /api/v1/users
-  auth: true
-  queryParams:
-    role: "admin"
-    limit: "10"
-  expectedStatus: 200
+endpoints:
+  - name: get-user-profile
+    method: GET
+    path: /api/v1/profile
+    auth: true
+    expectedStatus: 200
+    expectedFields:
+      - id
+      - username
+      - email
+      - role
 
-- name: get-user-by-id
-  method: GET
-  path: /api/v1/users/:id
-  auth: true
-  pathParams:
-    id: "123"
-  expectedStatus: 200
+  - name: search-users
+    method: GET
+    path: /api/v1/users
+    auth: true
+    queryParams:
+      role: "admin"
+      limit: "10"
+    requiredFields:
+      - role
+    description: "limit and offset are optional. role is required to be either admin or user."
+    expectedStatus: 200
 
-- name: create-product
-  method: POST
-  path: /api/v1/products
-  auth: true
-  expectedStatus: 201
-  headers:
-    Content-Type: application/json
-  body:
-    name: "New Product"
-    price: 99.99
-  expectedFields:
-    - productId
-    - createdAt
+  - name: get-user-by-id
+    method: GET
+    path: /api/v1/users/:id
+    auth: true
+    pathParams:
+      id: "123"
+    expectedStatus: 200
+
+  - name: create-product
+    method: POST
+    path: /api/v1/products
+    auth: true
+    expectedStatus: 201
+    headers:
+      Content-Type: application/json
+    body:
+      name: "New Product"
+      price: 99.99
+      discount: 5
+    requiredFields:
+      - name
+      - price
+    description: "discount is optional. price cannot be negative."
+    expectedFields:
+      - productId
+      - createdAt
 `;
     return { content: [{ type: 'text', text: format }] };
   }

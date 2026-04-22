@@ -3,7 +3,8 @@ import { getProvider, PROVIDER_NAMES } from '../providers/factory.js';
 import { runFromPlans } from '../runner/runner.js';
 import { loadTestSuite } from '../runner/loader.js';
 import { generateMarkdownReport, saveReport } from '../reports/generator.js';
-import type { GeneratedTestPlan } from '../types.js';
+import { mergeAnalyses } from '../providers/prompt.js';
+import type { GeneratedTestPlan, TestRunResult, AIAnalysis } from '../types.js';
 
 export const runApiTestSchema = z.object({
   endpoint: z.string().optional().describe('Specific endpoint name, or omit to test all'),
@@ -47,10 +48,25 @@ export async function runApiTest(input: RunApiTestInput): Promise<string> {
   logs.push(`\n**Phase 2 — Menjalankan test cases...**\n`);
   const testResults = await runFromPlans(suite, testPlans, provider.name, provider.model);
 
-  // Phase 3: Analyze
-  console.error(`[run_api_test] Phase 3: analyzing results...`);
-  logs.push(`**Phase 3 — AI menganalisis hasil...**\n`);
-  const analysis = await provider.analyze(testResults, testPlans);
+  // Phase 3: Analyze per endpoint to minimize context length
+  console.error(`[run_api_test] Phase 3: analyzing results per endpoint...`);
+  logs.push(`**Phase 3 — AI menganalisis hasil per endpoint...**\n`);
+
+  const analyses: AIAnalysis[] = [];
+  for (const endpointResult of testResults.endpoints) {
+    const endpointPlan = testPlans.find((p) => p.endpointName === endpointResult.endpoint);
+    const miniResult: TestRunResult = {
+      ...testResults,
+      totalEndpoints: 1,
+      endpoints: [endpointResult],
+    };
+
+    console.error(`  [analyzer] Analyzing: ${endpointResult.endpoint}...`);
+    const singleAnalysis = await provider.analyze(miniResult, endpointPlan ? [endpointPlan] : []);
+    analyses.push(singleAnalysis);
+  }
+
+  const analysis = mergeAnalyses(analyses);
 
   const reportMd = generateMarkdownReport(testResults, analysis, testPlans, 'functional');
   const savedPath = saveReport(reportMd, provider.name, 'functional');
