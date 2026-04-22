@@ -13,7 +13,7 @@ import {
 // No API key required — any placeholder string works
 // Start the server: LM Studio → Developer tab → Start Server
 
-const SYSTEM_PROMPT = 'You are an expert API security engineer and QA analyst. Always respond with valid JSON only. No markdown, no explanation, no text before or after the JSON object.';
+const SYSTEM_PROMPT = 'You are an expert API security engineer and QA analyst. Always respond with valid JSON only.';
 
 export class LMStudioProvider implements AIProvider {
     name = 'lmstudio';

@@ -178,18 +178,45 @@ export function generateMarkdownReport(
       const filtered = ep.results.filter((r) => r.type === type);
       if (filtered.length === 0) continue;
 
+      const isSecurity = mode === 'security';
+      const tableHeader = isSecurity
+        ? `| # | Deskripsi | Status | Code | Latency | OWASP |`
+        : `| # | Deskripsi | Status | Code | Latency |`;
+      const tableDivider = isSecurity
+        ? `|---|-----------|--------|------|---------|-------|`
+        : `|---|-----------|--------|------|---------|`;
+
       lines.push(`**${type.charAt(0).toUpperCase() + type.slice(1)} Tests**`);
       lines.push(``);
-      lines.push(`| # | Deskripsi | Status | Code | Latency | OWASP |`);
-      lines.push(`|---|-----------|--------|------|---------|-------|`);
+      lines.push(tableHeader);
+      lines.push(tableDivider);
 
       filtered.forEach((r, i) => {
         const emoji = STATUS_EMOJI[r.status] ?? '❓';
-        const owasp = r.owaspCategory ?? '-';
         const desc = r.description.slice(0, 45);
-        lines.push(`| ${i + 1} | ${desc} | ${emoji} | ${r.statusCode ?? '-'} | ${r.latencyMs ?? '-'}ms | ${owasp} |`);
+
+        let row = `| ${i + 1} | ${desc} | ${emoji} | ${r.statusCode ?? '-'} | ${r.latencyMs ?? '-'}ms |`;
+        if (isSecurity) {
+          row += ` ${r.owaspCategory ?? '-'} |`;
+        }
+        lines.push(row);
+
+        const payloadParts: string[] = [];
+        if (r.requestPathParams && Object.keys(r.requestPathParams).length > 0)
+          payloadParts.push(`Path: \`${JSON.stringify(r.requestPathParams)}\``);
+        if (r.requestQueryParams && Object.keys(r.requestQueryParams).length > 0)
+          payloadParts.push(`Query: \`${JSON.stringify(r.requestQueryParams)}\``);
+        if (r.requestBody && typeof r.requestBody === 'object' && Object.keys(r.requestBody as object).length > 0)
+          payloadParts.push(`Body: \`${JSON.stringify(r.requestBody)}\``);
+
+        if (payloadParts.length > 0) {
+          const emptyCols = isSecurity ? '| | | | | |' : '| | | | |';
+          lines.push(`| | **Payload:** ${payloadParts.join(' · ')} ${emptyCols.slice(4)}`);
+        }
+
         if (r.notes) {
-          lines.push(`| | _${r.notes.slice(0, 70)}_ | | | | |`);
+          const emptyCols = isSecurity ? '| | | | | |' : '| | | | |';
+          lines.push(`| | _${r.notes.slice(0, 70)}_ ${emptyCols.slice(4)}`);
         }
       });
       lines.push(``);
@@ -203,12 +230,13 @@ export function generateMarkdownReport(
 }
 
 export function saveReport(content: string, provider: string, mode: 'functional' | 'security' = 'functional'): string {
-  const dir = process.env.REPORTS_DIR ?? './reports';
-  fs.mkdirSync(dir, { recursive: true });
+  const baseDir = process.env.REPORTS_DIR ?? './reports';
+  const targetDir = path.resolve(baseDir, mode);
+  fs.mkdirSync(targetDir, { recursive: true });
 
-  const dateStr = new Date().toISOString().split('T')[0];
-  const filename = `${dateStr}-${provider}-${mode}.md`;
-  const filePath = path.resolve(dir, filename);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const filename = `${timestamp}-${provider}.md`;
+  const filePath = path.resolve(targetDir, filename);
 
   fs.writeFileSync(filePath, content, 'utf-8');
   return filePath;

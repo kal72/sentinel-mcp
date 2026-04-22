@@ -38,6 +38,10 @@ export interface SingleTestResult {
     responseHeaders?: Record<string, string>;
     error?: string;
     notes?: string;
+    // Payloads sent
+    requestBody?: unknown;
+    requestQueryParams?: Record<string, string>;
+    requestPathParams?: Record<string, string>;
     // from AI-generated test case
     owaspCategory?: OwaspCategory;
     owaspRationale?: string;

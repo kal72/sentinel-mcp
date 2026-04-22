@@ -40,7 +40,7 @@ server.registerTool(
     description: 'Run OWASP Top 10 2021 security tests on API endpoints. AI generates attack test cases (SQLi, XSS, SSRF, Auth bypass, IDOR, etc.) and analyzes vulnerabilities.',
     inputSchema: z.object({
       endpoint: z.string().optional().describe('Endpoint name to test, or omit to test all'),
-      provider: z.enum(['ollama', 'claude', 'openai', 'gemini']).optional()
+      provider: z.enum(['ollama', 'lmstudio', 'claude', 'openai', 'gemini']).optional()
         .describe('AI provider. For best security analysis, prefer claude or openai'),
       suite_file: z.string().optional().describe('Path to YAML test suite file'),
       suite_dir: z.string().optional().describe('Path to directory containing YAML test suite files. All .yaml/.yml files will be loaded and merged'),

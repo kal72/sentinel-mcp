@@ -41,8 +41,23 @@ function fillSchema(endpoint: EndpointConfig): string {
 }
 
 function parseJSON<T>(raw: string): T {
-  const cleaned = raw.replace(/^```[\w]*\n?/m, '').replace(/```\s*$/m, '').trim();
-  return JSON.parse(cleaned) as T;
+  // 1. Clean markdown backticks and surrounding text
+  let cleaned = raw.replace(/^```[\w]*\n?/m, '').replace(/```\s*$/m, '').trim();
+
+  // 2. Isolate the JSON object
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch (err) {
+    console.error('[sentinel] JSON Parse Error. AI output was invalid JSON.');
+    console.error('[sentinel] Problematic snippet:', cleaned.slice(0, 500));
+    throw err;
+  }
 }
 
 // ─── Data Pruning Helpers (Minimize Context Length) ─────────────
@@ -81,11 +96,18 @@ function pruneTestPlans(plans: GeneratedTestPlan[]) {
 
 export function buildFunctionalTestPlanPrompt(endpoint: EndpointConfig, baseUrl: string): string {
   const hasInputs = !!(endpoint.body || endpoint.queryParams || endpoint.pathParams || (endpoint.requiredFields && endpoint.requiredFields.length > 0));
-  const info = JSON.stringify({ baseUrl, ...endpoint });
+  const info = JSON.stringify({ baseUrl, ...endpoint }, null, 2);
 
   const sections = [
     'You are a senior QA engineer.',
     'Generate a FUNCTIONAL test plan (positive and negative only) for this API endpoint.',
+    '',
+    '### MANDATORY RULES FOR PAYLOADS:',
+    '- EVERY test case MUST have a UNIQUE payload. Do NOT reuse the same data across different cases.',
+    '- For "Boundary values", use actual min/max/limit values (e.g., page=0, page=99999, size=100).',
+    '- For "Realistic data", use diverse and creative human-like data.',
+    '- IMPORTANT: Read the "description" field carefully. If it mentions optional parameters (like Search, CategoryID, etc.), you MUST include them in your test cases even if they are not explicitly defined in a schema.',
+    '- Ensure the "queryParams" and "body" reflect the specific goal of that test case.',
     '',
     'Endpoint info:',
     info,
@@ -102,13 +124,13 @@ export function buildFunctionalTestPlanPrompt(endpoint: EndpointConfig, baseUrl:
 
   sections.push(
     '1. POSITIVE TESTS — valid inputs that should succeed',
-    '   - Happy path with all required fields',
+    hasInputs ? '   - Happy path with all required fields' : '   - Happy path (basic reachability check)',
     hasInputs ? '   - Boundary values (min/max allowed)' : '',
-    hasInputs ? '   - Optional fields present then absent' : '',
-    '   - REALISTIC DATA VARIATIONS (CRITICAL):',
-    '     * Be a realistic user. Use real human names (e.g., "Budi Santoso", not "test").',
-    '     * Use contextually accurate values.',
-    '     * Inject international UTF-8 characters and Emojis.',
+    hasInputs ? '   - Optional fields present then absent (CRITICAL: Use all optional parameters mentioned in the description)' : '',
+    hasInputs ? '   - REALISTIC DATA VARIATIONS (CRITICAL):' : '',
+    hasInputs ? '     * Be a realistic user. Use real human names (e.g., "Budi Santoso", not "test").' : '',
+    hasInputs ? '     * Use contextually accurate values.' : '',
+    hasInputs ? '     * Inject international UTF-8 characters and Emojis.' : '',
     '',
     '2. NEGATIVE TESTS — invalid inputs that must return proper 4xx errors',
   );
@@ -120,7 +142,8 @@ export function buildFunctionalTestPlanPrompt(endpoint: EndpointConfig, baseUrl:
       '     * Integers typed with commas/dots by mistake',
       '     * Valid email format but completely invalid TLD',
       '   - Missing required fields',
-      '   - Wrong data types',
+      '   - Wrong data types (string instead of int, etc.)',
+      '   - Field length violations (too short/long)',
       '   - Empty string, null, whitespace-only values',
       '   - Out-of-range values',
       '   - Malformed formats',
@@ -133,7 +156,6 @@ export function buildFunctionalTestPlanPrompt(endpoint: EndpointConfig, baseUrl:
     }
     sections.push(
       `   - Invalid HTTP methods (e.g., call POST or DELETE instead of ${endpoint.method})`,
-      '   - Large payload/headers for basic DoS protection check',
     );
   }
 
@@ -154,7 +176,7 @@ export function buildFunctionalTestPlanPrompt(endpoint: EndpointConfig, baseUrl:
 // ─── Prompt 2: Security-only test plan (OWASP Top 10) ────────────────────────
 
 export function buildSecurityTestPlanPrompt(endpoint: EndpointConfig, baseUrl: string): string {
-  const info = JSON.stringify({ baseUrl, ...endpoint });
+  const info = JSON.stringify({ baseUrl, ...endpoint }, null, 2);
   return [
     'You are a senior API penetration tester and OWASP expert.',
     'Generate a SECURITY-ONLY test plan for this API endpoint, mapped to OWASP Top 10 2021.',
@@ -194,6 +216,7 @@ export function buildSecurityTestPlanPrompt(endpoint: EndpointConfig, baseUrl: s
     '  - Business logic bypass: negative price (-1), quantity=0',
     '  - Sequential resource ID enumeration',
     '  - Rate limit test: send 20 rapid identical requests',
+    '  - Large payload/headers for basic DoS protection check',
     '',
     'A05 — Security Misconfiguration',
     '  - Send malformed JSON to trigger verbose error (check for stack traces)',
@@ -242,10 +265,10 @@ export function buildFunctionalAnalysisPrompt(
     'Analyze these API functional test results (positive and negative tests only).',
     '',
     'Test Plans:',
-    JSON.stringify(pruneTestPlans(testPlans)),
+    JSON.stringify(pruneTestPlans(testPlans), null, 2),
     '',
     'Actual Results:',
-    JSON.stringify(pruneTestResults(testResults)),
+    JSON.stringify(pruneTestResults(testResults), null, 2),
     '',
     'Analysis requirements:',
     '1. POSITIVE: correct status code, correct response fields, latency < 2000ms?',
@@ -287,10 +310,10 @@ export function buildSecurityAnalysisPrompt(
     'Analyze these API security test results.',
     '',
     'Security Test Plans (what was attempted):',
-    JSON.stringify(pruneTestPlans(testPlans)),
+    JSON.stringify(pruneTestPlans(testPlans), null, 2),
     '',
     'Actual Results (what happened):',
-    JSON.stringify(pruneTestResults(testResults)),
+    JSON.stringify(pruneTestResults(testResults), null, 2),
     '',
     'For each test case, determine:',
     '- Was the attack rejected properly (4xx or specific safe error)?',
