@@ -8,8 +8,8 @@ import type { GeneratedTestPlan, TestRunResult, AIAnalysis } from '../types.js';
 
 export const runSecurityTestSchema = z.object({
   endpoint: z.string().optional().describe('Specific endpoint name, or omit to test all'),
-  provider: z.enum(['ollama', 'lmstudio', 'claude', 'openai', 'gemini']).optional()
-    .describe('AI provider. For best security analysis, prefer claude or openai'),
+  provider: z.enum(['ollama', 'lmstudio', 'claude', 'openai', 'gemini', 'openrouter']).optional()
+    .describe('AI provider. For best security analysis, prefer claude or openai or openrouter'),
   suite_file: z.string().optional().describe('Custom path to YAML test suite file'),
   suite_dir: z.string().optional().describe('Path to directory containing YAML test suite files'),
 });
@@ -117,53 +117,15 @@ export async function runSecurityTest(input: RunSecurityTestInput): Promise<stri
   return [
     logs.join('\n'),
     `---`,
-    `## Hasil Security Testing (OWASP Top 10 2021)`,
+    reportMd,
+    `---`,
+    `## Ringkasan Security Testing (OWASP)`,
     ``,
     `**Provider:** ${provider.name} (\`${provider.model}\`)`,
     `**Endpoint:** ${testResults.totalEndpoints} · **Test cases:** ${allResults.length}`,
-    `**Hasil:** ✅ ${pass} ditolak (aman) · ❌ ${fail} lolos (berbahaya) · ⚠️ ${warn} perlu review`,
+    `**Hasil:** ✅ ${pass} aman · ❌ ${fail} lolos · ⚠️ ${warn} review`,
     `**Security Score:** ${analysis.overallScore}/100`,
     ``,
-    `### Ringkasan`,
-    analysis.summary,
-    ``,
-    Object.keys(owaspSummary).length > 0
-      ? `### Temuan per OWASP Category\n` +
-      Object.entries(owaspSummary)
-        .map(([cat, n]) => `- **${cat}**: ${n} issue(s)`)
-        .join('\n')
-      : '',
-    ``,
-    criticalIssues.length > 0
-      ? `### 🔴 Critical Vulnerabilities (${criticalIssues.length})\n` +
-      criticalIssues
-        .map((s) => [
-          `- **${s.vulnerability}** — \`${s.endpoint}\` (${s.owaspCategory}${s.cweId ? ` · ${s.cweId}` : ''})`,
-          `  ${s.description}`,
-          `  _Fix: ${s.recommendation}_`,
-        ].join('\n'))
-        .join('\n')
-      : `### Tidak ada critical vulnerability 🎉`,
-    ``,
-    highIssues.length > 0
-      ? `### 🟠 High Severity (${highIssues.length})\n` +
-      highIssues
-        .map((s) => `- **${s.vulnerability}** — \`${s.endpoint}\`: ${s.description}`)
-        .join('\n')
-      : '',
-    ``,
-    analysis.securityIssues.filter((s) => !['critical', 'high'].includes(s.severity)).length > 0
-      ? `### Temuan Lainnya\n` +
-      analysis.securityIssues
-        .filter((s) => !['critical', 'high'].includes(s.severity))
-        .map((s) => `- **[${s.severity.toUpperCase()}]** ${s.vulnerability} — \`${s.endpoint}\``)
-        .join('\n')
-      : '',
-    ``,
-    analysis.recommendations.length > 0
-      ? `### Rekomendasi Umum\n` + analysis.recommendations.map((r) => `- ${r}`).join('\n')
-      : '',
-    ``,
-    `**Report lengkap:** \`${savedPath}\``,
+    `**Report saved to:** \`${savedPath}\``,
   ].filter(Boolean).join('\n');
 }

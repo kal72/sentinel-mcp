@@ -8,7 +8,7 @@ import type { GeneratedTestPlan, TestRunResult, AIAnalysis } from '../types.js';
 
 export const runApiTestSchema = z.object({
   endpoint: z.string().optional().describe('Specific endpoint name, or omit to test all'),
-  provider: z.enum(['ollama', 'lmstudio', 'claude', 'openai', 'gemini']).optional(),
+  provider: z.enum(['ollama', 'lmstudio', 'claude', 'openai', 'gemini', 'openrouter']).optional(),
   suite_file: z.string().optional().describe('Custom path to YAML test suite file'),
   suite_dir: z.string().optional().describe('Path to directory containing YAML test suite files'),
 });
@@ -79,24 +79,16 @@ export async function runApiTest(input: RunApiTestInput): Promise<string> {
   return [
     logs.join('\n'),
     `---`,
-    `## Hasil Functional Testing`,
+    reportMd,
+    `---`,
+    `## Ringkasan Hasil`,
     ``,
     `**Provider:** ${provider.name} (\`${provider.model}\`)`,
     `**Endpoint:** ${testResults.totalEndpoints} · **Test cases:** ${allResults.length}`,
     `**Hasil:** ✅ ${pass} pass · ❌ ${fail} fail · ⚠️ ${warn} warning`,
     `**Skor:** ${analysis.overallScore}/100`,
     ``,
-    `### Ringkasan`,
-    analysis.summary,
-    ``,
-    analysis.bugs.length > 0
-      ? `### Bug Ditemukan (${analysis.bugs.length})\n` +
-      analysis.bugs
-        .map((b) => `- **[${b.severity.toUpperCase()}]** \`${b.endpoint}\`: ${b.description}\n  _Fix: ${b.fix}_`)
-        .join('\n')
-      : `### Tidak ada bug ✅`,
-    ``,
-    `**Report:** \`${savedPath}\``,
+    `**Report saved to:** \`${savedPath}\``,
     ``,
     `> Untuk security testing, gunakan tool \`run_security_test\``,
   ].filter(Boolean).join('\n');
