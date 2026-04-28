@@ -1,6 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import type { AIAnalysis, TestRunResult, SingleTestResult, GeneratedTestPlan } from '../types.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// This points to the 'reports' folder in the project root
+const DEFAULT_REPORTS_DIR = path.resolve(__dirname, '../../reports');
 
 const SEVERITY_EMOJI: Record<string, string> = {
   critical: '🔴',
@@ -201,6 +206,14 @@ export function generateMarkdownReport(
         }
         lines.push(row);
 
+        // Show actual URL used for the test
+        const emptyCols = isSecurity ? '| | | | | |' : '| | | | |';
+        lines.push(`| | **URL:** \`${r.method} ${r.path}\` ${emptyCols.slice(4)}`);
+
+        if (r.requestHeaders && Object.keys(r.requestHeaders).length > 0) {
+          lines.push(`| | **Headers:** \`${JSON.stringify(r.requestHeaders)}\` ${emptyCols.slice(4)}`);
+        }
+
         const payloadParts: string[] = [];
         if (r.requestPathParams && Object.keys(r.requestPathParams).length > 0)
           payloadParts.push(`Path: \`${JSON.stringify(r.requestPathParams)}\``);
@@ -212,6 +225,21 @@ export function generateMarkdownReport(
         if (payloadParts.length > 0) {
           const emptyCols = isSecurity ? '| | | | | |' : '| | | | |';
           lines.push(`| | **Payload:** ${payloadParts.join(' · ')} ${emptyCols.slice(4)}`);
+        }
+
+        // Show Response Body for security tests or if specifically requested
+        if (r.responseBody) {
+          const bodyStr = typeof r.responseBody === 'string'
+            ? r.responseBody
+            : JSON.stringify(r.responseBody);
+
+          if (bodyStr !== '{}' && bodyStr !== '""') {
+            const truncatedBody = bodyStr.length > 200
+              ? bodyStr.slice(0, 200) + '...'
+              : bodyStr;
+            const emptyCols = isSecurity ? '| | | | | |' : '| | | | |';
+            lines.push(`| | **Response:** \`${truncatedBody.replace(/`/g, "'")}\` ${emptyCols.slice(4)}`);
+          }
         }
 
         if (r.notes) {
@@ -230,7 +258,7 @@ export function generateMarkdownReport(
 }
 
 export function saveReport(content: string, provider: string, mode: 'functional' | 'security' = 'functional'): string {
-  const baseDir = process.env.REPORTS_DIR ?? './reports';
+  const baseDir = process.env.REPORTS_DIR ? path.resolve(process.env.REPORTS_DIR) : DEFAULT_REPORTS_DIR;
   const targetDir = path.resolve(baseDir, mode);
   fs.mkdirSync(targetDir, { recursive: true });
 

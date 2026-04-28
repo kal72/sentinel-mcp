@@ -1,4 +1,9 @@
-import 'dotenv/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -17,7 +22,7 @@ server.registerTool(
     description: 'Run positive and negative functional tests on API endpoints. AI generates test cases automatically and analyzes results.',
     inputSchema: z.object({
       endpoint: z.string().optional().describe('Endpoint name to test, or omit to test all'),
-      provider: z.enum(['ollama', 'claude', 'openai', 'gemini', 'lmstudio']).optional(),
+      provider: z.enum(['ollama', 'claude', 'openai', 'gemini', 'lmstudio', 'openrouter']).optional(),
       suite_file: z.string().optional().describe('Path to YAML test suite file'),
       suite_dir: z.string().optional().describe('Path to directory containing YAML test suite files. All .yaml/.yml files will be loaded and merged'),
     }),
@@ -40,8 +45,8 @@ server.registerTool(
     description: 'Run OWASP Top 10 2021 security tests on API endpoints. AI generates attack test cases (SQLi, XSS, SSRF, Auth bypass, IDOR, etc.) and analyzes vulnerabilities.',
     inputSchema: z.object({
       endpoint: z.string().optional().describe('Endpoint name to test, or omit to test all'),
-      provider: z.enum(['ollama', 'lmstudio', 'claude', 'openai', 'gemini']).optional()
-        .describe('AI provider. For best security analysis, prefer claude or openai'),
+      provider: z.enum(['ollama', 'lmstudio', 'claude', 'openai', 'gemini', 'openrouter']).optional()
+        .describe('AI provider. For best security analysis, prefer claude or openai or openrouter'),
       suite_file: z.string().optional().describe('Path to YAML test suite file'),
       suite_dir: z.string().optional().describe('Path to directory containing YAML test suite files. All .yaml/.yml files will be loaded and merged'),
     }),

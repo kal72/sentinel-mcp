@@ -42,6 +42,9 @@ export interface SingleTestResult {
     requestBody?: unknown;
     requestQueryParams?: Record<string, string>;
     requestPathParams?: Record<string, string>;
+    requestHeaders?: Record<string, string>;
+    path: string; // The actual path used (with params replaced)
+    method: string;
     // from AI-generated test case
     owaspCategory?: OwaspCategory;
     owaspRationale?: string;
@@ -139,4 +142,4 @@ export interface AIProvider {
     analyzeSecurity(testResults: TestRunResult, testPlans: GeneratedTestPlan[]): Promise<AIAnalysis>;
 }
 
-export type ProviderName = 'ollama' | 'claude' | 'openai' | 'gemini' | 'lmstudio';
+export type ProviderName = 'ollama' | 'claude' | 'openai' | 'gemini' | 'lmstudio' | 'openrouter';
